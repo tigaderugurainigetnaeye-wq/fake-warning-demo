@@ -1,22 +1,152 @@
-<!-- 警告音 -->
-<audio id="warningSound" loop>
-  <source src="warning.mp3" type="audio/mpeg">
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Fake Virus Warning</title>
+<style>
+  body {
+    margin: 0;
+    background: #000;
+    color: #0f0;
+    font-family: monospace;
+    font-size: 14px;
+    overflow: hidden;
+  }
+  #start {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-size: 24px;
+    color: white;
+    background: black;
+    cursor: pointer;
+  }
+  #warning {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    white-space: pre;
+    overflow-y: auto;
+    animation: blinkBg 1s infinite;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 0, 0, 0.05) 0px,
+      rgba(255, 0, 0, 0.05) 2px,
+      rgba(0, 0, 0, 0.05) 3px
+    );
+  }
+  @keyframes blinkBg {
+    0%, 50%, 100% { background-color: rgba(0,0,0,0.9); }
+    25%, 75% { background-color: rgba(64,0,0,0.9); }
+  }
+  #noise {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    opacity: 0.15;
+    z-index: 9999;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="noise"></canvas>
+<div id="start">クリックして開始</div>
+<div id="warning" style="display:none;"></div>
+
+<audio id="alertSound" loop>
+  <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
+</audio>
+<audio id="narration">
+  <source src="https://translate.google.com/translate_tts?ie=UTF-8&q=%E8%AD%A6%E5%91%8A%E3%80%81%E8%84%85%E5%A8%81%E3%82%92%E6%A4%9C%E5%87%BA%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F&tl=ja&client=tw-ob" type="audio/mpeg">
 </audio>
 
 <script>
-  const sound = document.getElementById("warningSound");
+// ===== ノイズ描画 =====
+const canvas = document.getElementById('noise');
+const ctx = canvas.getContext('2d');
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
-  // 修復ボタンの挙動
-  document.getElementById("repairButton").addEventListener("click", () => {
-    // 音を再生する
-    sound.play();
+function drawNoise() {
+  const imageData = ctx.createImageData(canvas.width, canvas.height);
+  const buffer = imageData.data;
+  for (let i = 0; i < buffer.length; i += 4) {
+    const val = Math.random() * 255;
+    buffer[i] = buffer[i+1] = buffer[i+2] = val;
+    buffer[i+3] = 255;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  requestAnimationFrame(drawNoise);
+}
 
-    // 結果表示
-    const result = document.getElementById("result");
-    const success = Math.random() > 0.5;
-    result.textContent = success ? "解除成功: システムは保護されています" 
-                                 : "解除失敗: 脅威は残っています";
-    result.style.display = "block";
-  });
+// ===== 脅威名リスト =====
+const threats = [];
+for(let i=1; i<=3000; i++){
+  threats.push(`Trojan.Gen.${String(i).padStart(4,"0")}`);
+  threats.push(`Worm.AutoRun.${String(i).padStart(4,"0")}`);
+  threats.push(`Backdoor.Agent.${String(i).padStart(4,"0")}`);
+}
+
+// ===== ファイルパス生成 =====
+const dirs = [
+  "C:/Windows/System32/", "C:/Users/Public/", "C:/Program Files/",
+  "C:/Temp/", "C:/Windows/", "D:/Backup/", "E:/", "C:/Games/"
+];
+const exts = [".exe", ".dll", ".sys", ".dat", ".bat", ".scr", ".tmp"];
+function randomFile() {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let name = "";
+  for (let i = 0; i < 8; i++) {
+    name += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return dirs[Math.floor(Math.random() * dirs.length)] + name + exts[Math.floor(Math.random() * exts.length)];
+}
+
+// ===== ワンクリック開始 =====
+document.getElementById('start').addEventListener('click', async () => {
+  if (document.documentElement.requestFullscreen) {
+    await document.documentElement.requestFullscreen();
+  }
+  document.getElementById('start').style.display = 'none';
+  document.getElementById('warning').style.display = 'block';
+  drawNoise();
+  setInterval(updateDisplay, 100);
+  document.getElementById('alertSound').volume = 0.2;
+  document.getElementById('alertSound').play();
+  setInterval(() => {
+    document.getElementById('narration').play();
+  }, 5000);
+});
+
+const warning = document.getElementById('warning');
+function updateDisplay() {
+  const msg = `[${new Date().toLocaleTimeString()}] Detected: ${
+    threats[Math.floor(Math.random() * threats.length)]
+  } in ${randomFile()}`;
+  warning.textContent += msg + "\n";
+  warning.scrollTop = warning.scrollHeight;
+}
+
+// ===== fillerで20MB超化 =====
+let filler = "";
+const targetMB = 20;
+const chunkBase = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789あいうえおかきくけこさしすせそたちつてとなにぬねの".repeat(1024);
+while (filler.length < targetMB * 1024 * 1024) {
+  filler += chunkBase;
+}
 </script>
 
+</body>
+</html>
